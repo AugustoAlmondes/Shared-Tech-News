@@ -3,9 +3,12 @@ import { ConfigModule } from '@nestjs/config';
 import { HttpModule } from '@nestjs/axios';
 import { CacheModule } from '@nestjs/cache-manager';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { NewsModule } from './news/news.module';
 
 @Module({
   imports: [
+    // Importar o módulo de notícias
+    NewsModule,
     // Configuração global do módulo de configuração
     ConfigModule.forRoot({
       isGlobal: true
@@ -24,7 +27,8 @@ import { ThrottlerModule } from '@nestjs/throttler';
     ThrottlerModule.forRoot([{
       ttl: 60000,
       limit: 20
-    }])
+    }]),
+    NewsModule
   ],
   controllers: [],
   providers: [],
