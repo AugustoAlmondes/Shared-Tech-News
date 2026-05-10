@@ -1,6 +1,10 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import helmet from 'helmet';
+import {
+  SwaggerModule,
+  DocumentBuilder
+} from '@nestjs/swagger'
 import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
@@ -25,6 +29,25 @@ async function bootstrap() {
       whitelist: true,
       transform: true
     })
+  );
+
+  // Configura a documentação Swagger
+  const config = new DocumentBuilder()
+    .setTitle("News API")
+    .setDescription('API de notícias usando Currents API')
+    .setVersion('1.0')
+    .build();
+
+  // Cria o documento Swagger
+  const document = SwaggerModule.createDocument(
+    app, config
+  );
+
+  // Configura a documentação Swagger
+  SwaggerModule.setup(
+    'docs',
+    app,
+    document
   );
 
   await app.listen(process.env.PORT ?? 3000);
