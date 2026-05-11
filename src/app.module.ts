@@ -2,9 +2,10 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { HttpModule } from '@nestjs/axios';
 import { CacheModule } from '@nestjs/cache-manager';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
+import { SecurityGuard } from './common/guards/security.guard';
 import { NewsModule } from './news/news.module';
-
 @Module({
   imports: [
     // Importar o módulo de notícias
@@ -26,11 +27,20 @@ import { NewsModule } from './news/news.module';
     // Limitar o número de requisição por IP
     ThrottlerModule.forRoot([{
       ttl: 60000,
-      limit: 20
+      limit: 30
     }]),
     NewsModule
   ],
   controllers: [],
-  providers: [],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: SecurityGuard,
+    },
+  ],
 })
 export class AppModule { }
