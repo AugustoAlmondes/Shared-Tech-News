@@ -26,7 +26,7 @@ export interface TypeNews {
 
 @Injectable()
 export class NewsService {
-    private readonly BASE_URL = 'https://api.currentsapi.services/v1/latest-news'
+    private readonly BASE_URL = 'https://api.currentsapi.services/v2/latest-news'
     constructor(
         private readonly httpService: HttpService,
         private readonly ConfigService: ConfigService,
@@ -36,39 +36,64 @@ export class NewsService {
     ) { }
 
     async getLatestNews(page: number = 1): Promise<ResponseNews> {
-        const cacheKey = `latest-news-page-${page}`
+        const cacheKey = `latest-news-bilingual-page-${page}`
 
         const cachedData = await this.cacheManager.get(cacheKey)
 
         if (cachedData) return cachedData as ResponseNews;
 
         try {
-
-
             const apiKey = this.ConfigService.get<string>('CURRENTS_API_KEY')
 
-            const response = await firstValueFrom(
-                this.httpService.get(this.BASE_URL, {
-                    params: {
-                        apiKey,
-                        page_number: page
-                    }
-                })
-            );
-
-            if (response.data) {
-
-                await this.cacheManager.set(
-                    cacheKey,
-                    response.data
-                );
-
-                return response.data as ResponseNews;
+            const commonParams = {
+                apiKey,
+                page_number: page,
+                category: 'science_technology',
             };
 
-            throw new InternalServerErrorException(
-                'Dados de resposta inválidos da API externa'
-            );
+            const [responseEn, responsePt] = await Promise.all([
+                firstValueFrom(
+                    this.httpService.get<ResponseNews>(this.BASE_URL, {
+                        params: { ...commonParams, language: 'en' },
+                    })
+                ),
+                firstValueFrom(
+                    this.httpService.get<ResponseNews>(this.BASE_URL, {
+                        params: { ...commonParams, language: 'pt' },
+                    })
+                ),
+            ]);
+
+            if (responseEn.data && responsePt.data) {
+
+                const newsEn: TypeNews[] = responseEn.data.news ?? [];
+                const newsPt: TypeNews[] = responsePt.data.news ?? [];
+
+                const mergedNews: TypeNews[] = [...newsEn, ...newsPt];
+
+                // Fisher-Yates shuffle — embaralha de forma imparcial e uniforme
+                for (let i = mergedNews.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [mergedNews[i], mergedNews[j]] = [mergedNews[j], mergedNews[i]];
+                }
+
+                const mergedResponse: ResponseNews = {
+                    status: responseEn.data?.status ?? 'ok',
+                    news: mergedNews,
+                    page,
+                };
+
+                await this.cacheManager.set(cacheKey, mergedResponse);
+
+                return mergedResponse;
+            }
+            else if (responseEn) {
+                return responseEn.data;
+            }
+            else if (responsePt) {
+                return responsePt.data;
+            }
+            return {} as ResponseNews;
         } catch {
             throw new InternalServerErrorException(
                 'Erro ao buscar notícias'
